@@ -22,6 +22,6 @@ setup(
 	description='Неофициальная библиотека имитирующее неофициальное апи для pikabu.ru',
 	author='Blackwave',
 	author_email='blackwave-rt@hotmail.com',
-	url='https://github.com/kafeman/habrahabr-python',
+	url='https://github.com/Blackwave-rt/pikabu/',
 	py_modules=['pikabu'],
 	)
