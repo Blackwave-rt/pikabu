@@ -292,9 +292,31 @@ class PikabuProfile(PikaService):
 			_page = self.request("profile/" + self.settings.get('login'))
 			if _page is not None:
 				page_body 		= lxml.html.document_fromstring(_page)
-				self._messages 	= page_body.xpath('//*[@id="wrap"]/table//tr/td[1]/table[1]//tr/td[2]/div[1]/table//tr/td[2]/div/text()')[3].strip().split(": ")[1]
+				try:
+					self._messages	= page_body.xpath('//*[@id="right_menu"]/table[1]//tr[2]/td/ul/li[5]/a/b')[0].text
+				except:
+					self._messages	= 0
 		else: pass
 		return self._messages
+
+	def last_msg(self):
+		_page = self.request("freshitems.php")
+		if _page is not None:
+			page_body 		= lxml.html.document_fromstring(_page)
+			try:
+				comment_text	= page_body.xpath('//*[@id="com2"]//tr[2]/td/div/div')[0].text.strip()				
+			except:
+				comment_text	= None
+				return False
+			if (comment_text != None):
+				comment_id 		= page_body.xpath('//*[@id="com2"]//tr[2]/td/div/noindex/div/input')[0].get("value")
+				comment_author	= page_body.xpath('//*[@id="com2"]//tr[1]/td/noindex/a[3]')[0].text
+				comment_time 	= page_body.xpath('//*[@id="com2"]//tr[1]/td/noindex/a[4]')[0].text
+				comment_rating 	= page_body.xpath('//*[@id="com2"]//tr[1]/td/noindex/h6')[0].text
+				comment_post 	= page_body.xpath('//*[@id="com2"]//tr[1]/td/noindex/a[5]')[0].text
+				return ObjectComments(comment_id, comment_rating, comment_author, comment_time, comment_text, comment_post)
+			else: return False
+		else: return False		
 
 	def comments(self):
 		if (self._comments == None):
@@ -460,12 +482,13 @@ class ObjectPosts():
 		self.tags = tags
 
 class ObjectComments():
-	def __init__(self, _id, rating, author, time, text):
+	def __init__(self, _id, rating, author, time, text, post=None):
 		self.id 	= _id
 		self.rating = rating
 		self.author = author
 		self.time 	= time
 		self.text 	= text
+		self.post 	= post
 
 class ObjectUserInfo():
 	def __init__(self, login, dor, rating, comments, news, actions, awards):
