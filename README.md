@@ -31,10 +31,11 @@ $ sudo python setup.py install
 Все дальнейшие операции будут происходить через pika_api.
 
 Например, получим заоблачный рейтинг пользователя [Admin](http://pikabu.ru/profile/admin):
-
+```python
    import pikabu
    pika_api = pikabu.Api(login='ваш логин', password='ваш пароль')
    pika_api.users.get("admin", "rating")
+```
 
 ## Документация по возможностям
 
