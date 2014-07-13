@@ -16,7 +16,7 @@ $ sudo pip install pikabu
 ```
 Из исходников:
 ```bash
-$ git clone https://github.com/Blackwave-rt/pikabu && cd pikabu-python
+$ git clone https://github.com/Blackwave-rt/pikabu && cd pikabu
 $ sudo python setup.py install
 ```
 Готово!
