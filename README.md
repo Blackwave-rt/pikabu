@@ -38,7 +38,7 @@ $ sudo python setup.py install
 
 ## Документация по возможностям
 
-###api.posts.get(раздел, страница)
+###api.posts.get( (string)category, (int)page )
 Возвращает массив постов по выборке: горячее, популярные, свежее.
 
 Аргументы: [hot|best|new], страница
@@ -56,7 +56,7 @@ $ sudo python setup.py install
 	tags     - вернет массив тегов поста
 
 	
-###api.users.get(логин, параметр)
+###api.users.get( (string)login, (string)param )
 
 Возвращает объект "ObjectUserInfo" в случае, если параметр не был указан. Или (если он все же был указан, лол) возвращает значение запрашиваемого параметра.
 
@@ -95,7 +95,7 @@ $ sudo python setup.py install
 		etc
 
 
-###api.comments.get(alias, post_id)
+###api.comments.get( (string)alias, (int)post_id )
 Возвращает комментарии к выбранному посту (алиас вида: nazvanie_temy_1234567)
 
     api.comments(nazvanie_temy_1234567, 1234567) - вернет объект "ObjectComments"
@@ -112,11 +112,19 @@ $ sudo python setup.py install
 ###api.top_tags.get()
 Возвращает популярные за сутки теги. Вид: [название тега, количество]
 
-###api.posts.search(Запрос, cur_page=1, in_hot=True, in_pics=True, in_text=True, in_video=True)
+###api.posts.search( (string)query, (int)cur_page, (bool)in_hot, (bool)in_pics, (bool)in_text, (bool)in_video )
 Возвращает результаты поиска в виде объекта ObjectPosts. Аргументы соответствуют api.posts.get
 
-###api.posts.tag(tag_name, page, category=[hot|new|best])
+###api.posts.tag( (string)tag_name, (int)page, (string)category )
 Возвращает отфильтрованные по тегам посты в виде объекта ObjectPosts. Аргументы соответствуют api.posts.get
+
+###api.rate.set( (bool)action, (int)type, (int)post_id, (int or None)comment_id )
+Позволяет ставить рейтинг постам и комментариям.
+Параметры:
+action - True/False +/-, соответственно.
+type   - 1 - пост, 2 - комментарий
+post_id - ид поста
+comment_id - ид комментария. Не указывается при type=1
 
 ## Лицензия
 
