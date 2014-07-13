@@ -96,10 +96,10 @@ $ sudo python setup.py install
 		etc
 
 
-###api.comments.get( (string)alias, (int)post_id )
+###api.comments.get( (int)post_id, (string)alias )
 Возвращает комментарии к выбранному посту (алиас вида: nazvanie_temy_1234567)
 
-    api.comments(nazvanie_temy_1234567, 1234567) - вернет объект "ObjectComments"
+    api.comments.get(1234567, nazvanie_temy_1234567) - вернет объект "ObjectComments"
     
 Аргументы:
 
