@@ -25,7 +25,6 @@ import requests
 AUTH_URL = 'http://pikabu.ru/ajax/ajax_login.php'
 ENDPOINT = "http://pikabu.ru/"
 X_Csrf_Token = None
-cookie = cookielib.CookieJar()
 req = requests.Session()
 default_headers = {
 	"User-Agent"  : "Mozilla/5.0 (X11; Linux i686 (x86_64)) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/32.0.1700.107 Safari/537.36",
@@ -33,10 +32,8 @@ default_headers = {
 	"Host"		  : "pikabu.ru",
 	"Origin"	  : "pikabu.ru"
 }
-#req.addheaders = [('User-Agent', 'Mozilla/5.0 (X11; Linux i686 (x86_64)) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/32.0.1700.107 Safari/537.36'), ]
-#urllib2.install_opener(req)
 
-def fetch_url(_url, settings=None, _data=None, __method="POST"):
+def fetch_url(_url, settings=None, _data=None, __method="POST", target_page=None):
 	if len(req.cookies) == 0:		
 		url 	= AUTH_URL
 		__headers	= 	{ 
@@ -56,13 +53,18 @@ def fetch_url(_url, settings=None, _data=None, __method="POST"):
 
 	if _url is not None:
 		if _data != None and len(_data) >= 1:
-			_resp = req.get(ENDPOINT, headers=default_headers)
-			X_Csrf_Token = lxml.html.document_fromstring(_resp.text).xpath('/html/head/script[3]')[0].text.strip().split("\n")[2].strip().replace("'", "").split(": ")[1]
 			_headers = default_headers
+			if target_page != None:
+				_resp = req.get(ENDPOINT + target_page, headers=default_headers)
+				X_Csrf_Token = lxml.html.document_fromstring(_resp.text).xpath('/html/head/script[3]')[0].text.strip().split("\n")[2].strip().replace("'", "").split(": ")[1]	
+				_headers['Referer'] = ENDPOINT + target_page
+			else:
+				_resp = req.get(ENDPOINT, headers=default_headers)
+				X_Csrf_Token = lxml.html.document_fromstring(_resp.text).xpath('/html/head/script[3]')[0].text.strip().split("\n")[2].strip().replace("'", "").split(": ")[1]			
 			if (__method == "POST"):
 				_headers["Content-Type"] = "application/x-www-form-urlencoded"
 				_headers["Accept"]	     = "application/json, text/javascript, */*; q=0.01"
-				_headers["X-Csrf-Token"] = X_Csrf_Token				
+				_headers["X-Csrf-Token"] = X_Csrf_Token
 				resp = req.post(ENDPOINT + _url, headers=_headers, data=_data)
 			else:
 				resp = req.get(ENDPOINT + _url, headers=_headers, params=_data)
@@ -77,9 +79,9 @@ class PikaService:
 			raise ValueError('Нужно указать логин и пароль')
 		self.settings = settings
 
-	def request(self, url, data=None, method='POST'):
+	def request(self, url, data=None, method='POST', target_page=None):
 		if url is not None:
-			return fetch_url(url, self.settings, data, method)
+			return fetch_url(url, self.settings, data, method, target_page)
 		else: return False
 
 class PikabuSearch(PikaService):
@@ -217,6 +219,15 @@ class PikabuComments(PikaService):
 				return comment_list
 		else: return False
 
+	def add(self, text, post_id, comment_id=0):
+		if post_id and text is not None:
+			_page = self.request("ajax.php", {'act':"addcom", 'id':post_id, 'comment':text, 'parentid':comment_id, 'include':0, 'comment_images':'undefined'}, "POST")
+			if _page is not None:
+				try:
+					return json.loads(_page)["type"]
+				except: return False 
+		else: return False
+
 class PikabuTopTags(PikaService):
 	def get(self, limit=10):
 		if limit >= 1:
@@ -350,7 +361,7 @@ class PikabuUserInfo(PikaService):
 			if params == "news": return self.news(login)
 			if params == "actions": return self.actions(login)
 			if params == "awards": return self.awards(login)
-			return ObjectUserInfo(login, self.dor(login), self.rating(login), self.comments(login), self.news(login), self.actions(login), self.awards(login))
+		return ObjectUserInfo(login, self.dor(login), self.rating(login), self.comments(login), self.news(login), self.actions(login), self.awards(login))
 
 	def dor(self, login):
 		if (self._dor == None):
