@@ -20,25 +20,33 @@ import json
 import lxml.html
 from lxml import etree
 import sys
+import requests
 
 AUTH_URL = 'http://pikabu.ru/ajax/ajax_login.php'
 ENDPOINT = "http://pikabu.ru/"
+X_Csrf_Token = None
 cookie = cookielib.CookieJar()
-req = urllib2.build_opener(urllib2.HTTPCookieProcessor(cookie))
-req.addheaders = [('User-Agent', 'Mozilla/5.0 (X11; Linux i686 (x86_64)) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/32.0.1700.107 Safari/537.36'), ]
-urllib2.install_opener(req)
+req = requests.Session()
+default_headers = {
+	"User-Agent"  : "Mozilla/5.0 (X11; Linux i686 (x86_64)) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/32.0.1700.107 Safari/537.36",
+	"Referer"	  : "http://pikabu.ru/",
+	"Host"		  : "pikabu.ru",
+	"Origin"	  : "pikabu.ru"
+}
+#req.addheaders = [('User-Agent', 'Mozilla/5.0 (X11; Linux i686 (x86_64)) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/32.0.1700.107 Safari/537.36'), ]
+#urllib2.install_opener(req)
 
-def fetch_url(_url, settings=None):
-	if len(cookie) == 0:
+def fetch_url(_url, settings=None, _data=None, __method="POST"):
+	if len(req.cookies) == 0:		
 		url 	= AUTH_URL
-		headers	= 	{ 
+		__headers	= 	{ 
 						'mode'		:	"login",
 	                  	'username'	:	settings.get('login'),
 	                   	'password'	:	settings.get('password'),
 	                   	'remember'	:	0
 					}
-		resp 		= req.open(url, urllib.urlencode(headers))
-		response 	= json.loads(resp.read().decode("windows-1251"))
+		resp 		= req.post(url, data=__headers, headers=default_headers)
+		response 	= json.loads(resp.text)
 		if int(response["logined"]) == 0:
 			print 'Неверно указан логин или пароль'
 			sys.exit(1)
@@ -47,8 +55,20 @@ def fetch_url(_url, settings=None):
 			sys.exit(1)
 
 	if _url is not None:
-		resp = req.open(ENDPOINT + _url)		
-		return resp.read()
+		if _data != None and len(_data) >= 1:
+			_resp = req.get(ENDPOINT, headers=default_headers)
+			X_Csrf_Token = lxml.html.document_fromstring(_resp.text).xpath('/html/head/script[3]')[0].text.strip().split("\n")[2].strip().replace("'", "").split(": ")[1]
+			_headers = default_headers
+			if (__method == "POST"):
+				_headers["Content-Type"] = "application/x-www-form-urlencoded"
+				_headers["Accept"]	     = "application/json, text/javascript, */*; q=0.01"
+				_headers["X-Csrf-Token"] = X_Csrf_Token				
+				resp = req.post(ENDPOINT + _url, headers=_headers, data=_data)
+			else:
+				resp = req.get(ENDPOINT + _url, headers=_headers, params=_data)
+		else:
+			resp = req.get(ENDPOINT + _url, headers=default_headers)
+		return resp.text
 	else: return False
 
 class PikaService:
@@ -57,9 +77,9 @@ class PikaService:
 			raise ValueError('Нужно указать логин и пароль')
 		self.settings = settings
 
-	def request(self, url, method='GET'):
+	def request(self, url, data=None, method='POST'):
 		if url is not None:
-			return fetch_url(url, self.settings)
+			return fetch_url(url, self.settings, data, method)
 		else: return False
 
 class PikabuSearch(PikaService):
@@ -72,10 +92,10 @@ class PikabuPosts(PikaService):
 		if _page is not None:
 			posts_list = []	
 			try:
-				page_body = lxml.html.document_fromstring(json.loads(_page.decode("windows-1251"))["html"].replace("<br>", "\\n"))
+				page_body = lxml.html.document_fromstring(json.loads(_page)["html"].replace("<br>", "\\n"))
 			except:
 				return False			
-			for post_id in json.loads(_page.decode("windows-1251"))["news_arr"]:				
+			for post_id in json.loads(_page)["news_arr"]:				
 				post_title  	= page_body.xpath('//*[@id="num_dig3%s"]'%post_id)[0].text
 				post_url		= page_body.xpath('//*[@id="num_dig3%s"]'%post_id)[0].get("href")
 				post_text		= page_body.xpath('//*[@id="story_table_%s"]//tr/td[2]/table[@id="story_main_t"]//tr/td/div[2]'%post_id)[0].text
@@ -105,7 +125,7 @@ class PikabuPosts(PikaService):
 			added_params += "&page=%s"%cur_page
 			_page = self.request('search.php?q=%s%s' % (query, added_params))
 			posts_list = []
-			page_body = lxml.html.document_fromstring(_page.decode("windows-1251"))
+			page_body = lxml.html.document_fromstring(_page)
 			for story in page_body.xpath('//*[@id="stories_container"]/table'):
 				try:
 					post_id 		= int(story.get("attr"))
@@ -140,12 +160,11 @@ class PikabuPosts(PikaService):
 			_page = self.request('tag/%s/%s?page=%s&twitmode=1' % (tag_name, category, page))
 			if _page is not None:
 				posts_list = []
-				print _page
 				try:
-					page_body = lxml.html.document_fromstring(json.loads(_page.decode("windows-1251"))["html"].replace("<br>", "\\n"))
+					page_body = lxml.html.document_fromstring(json.loads(_page)["html"].replace("<br>", "\\n"))
 				except:
 					return False
-				for post_id in json.loads(_page.decode("windows-1251"))["news_arr"]:				
+				for post_id in json.loads(_page)["news_arr"]:				
 					post_title  	= page_body.xpath('//*[@id="num_dig3%s"]'%post_id)[0].text
 					post_url		= page_body.xpath('//*[@id="num_dig3%s"]'%post_id)[0].get("href")
 					post_text		= page_body.xpath('//*[@id="story_table_%s"]//tr/td[2]/table[@id="story_main_t"]//tr/td/div[2]'%post_id)[0].text
@@ -180,7 +199,7 @@ class PikabuComments(PikaService):
 			_page = self.request("story/" + post_url)
 			if _page is not None:
 				comment_list = []
-				page_body = lxml.html.document_fromstring(_page.decode("windows-1251"))
+				page_body = lxml.html.document_fromstring(_page)
 				for cur_comment in page_body.xpath('//*[@class="comm_wrap_counter"]'):
 					comment_id		= 	cur_comment.get("id")[3:]
 					comment_rating	=	page_body.xpath('//*[@id="%s"]//tr[1]/td/noindex/span'%cur_comment.get("id"))[0].text
@@ -204,7 +223,7 @@ class PikabuTopTags(PikaService):
 			_page = self.request("html.php?id=ad")
 			if _page is not None:
 				tag_list 	= {}
-				page_body 	= lxml.html.document_fromstring(_page.decode("windows-1251"))
+				page_body 	= lxml.html.document_fromstring(_page)
 				caret 		= []
 				for cur_tag in page_body.xpath('//*[@id="story_main_t"]//tr[2]/td/div/a/span'):
 					print cur_tag.text
@@ -234,7 +253,7 @@ class PikabuProfile(PikaService):
 		if (self._dor == None):
 			_page = self.request("profile/" + self.settings.get('login'))
 			if _page is not None:
-				page_body 	= lxml.html.document_fromstring(_page.decode("windows-1251"))
+				page_body 	= lxml.html.document_fromstring(_page)
 				self._dor 	= page_body.xpath('//*[@id="wrap"]/table//tr/td[1]/table[1]//tr/td[2]/div[1]/table//tr/td[2]/div/text()')[2].strip()
 		else: pass
 		return self._dor
@@ -243,7 +262,7 @@ class PikabuProfile(PikaService):
 		if (self._rating == None):
 			_page = self.request("profile/" + self.settings.get('login'))
 			if _page is not None:
-				page_body 		= lxml.html.document_fromstring(_page.decode("windows-1251"))
+				page_body 		= lxml.html.document_fromstring(_page)
 				self._rating 	= page_body.xpath('//*[@id="wrap"]/table//tr/td[1]/table[1]//tr/td[2]/div[1]/table//tr/td[2]/div/text()')[3].strip().split(": ")[1]
 		else: pass
 		return self._rating
@@ -252,7 +271,7 @@ class PikabuProfile(PikaService):
 		if (self._followers == None):
 			_page = self.request("profile/" + self.settings.get('login'))
 			if _page is not None:
-				page_body 		= lxml.html.document_fromstring(_page.decode("windows-1251"))
+				page_body 		= lxml.html.document_fromstring(_page)
 				self._followers = page_body.xpath('//*[@id="subs_num"]')[0].text.strip()
 		else: pass
 		return self._followers
@@ -261,7 +280,7 @@ class PikabuProfile(PikaService):
 		if (self._messages == None):
 			_page = self.request("profile/" + self.settings.get('login'))
 			if _page is not None:
-				page_body 		= lxml.html.document_fromstring(_page.decode("windows-1251"))
+				page_body 		= lxml.html.document_fromstring(_page)
 				self._messages 	= page_body.xpath('//*[@id="wrap"]/table//tr/td[1]/table[1]//tr/td[2]/div[1]/table//tr/td[2]/div/text()')[3].strip().split(": ")[1]
 		else: pass
 		return self._messages
@@ -270,7 +289,7 @@ class PikabuProfile(PikaService):
 		if (self._comments == None):
 			_page = self.request("profile/" + self.settings.get('login'))
 			if _page is not None:
-				page_body 		= lxml.html.document_fromstring(_page.decode("windows-1251"))
+				page_body 		= lxml.html.document_fromstring(_page)
 				self._comments 	= page_body.xpath('//*[@id="wrap"]/table//tr/td[1]/table[1]//tr/td[2]/div[1]/table//tr/td[2]/div/text()')[4].strip().split(": ")[1]
 		else: pass
 		return self._comments
@@ -279,7 +298,7 @@ class PikabuProfile(PikaService):
 		if (len(self._mynews) == 0):
 			_page = self.request("profile/" + self.settings.get('login'))
 			if _page is not None:
-				page_body 		= lxml.html.document_fromstring(_page.decode("windows-1251"))
+				page_body 		= lxml.html.document_fromstring(_page)
 				pseudo_data 	= page_body.xpath('//*[@id="wrap"]/table//tr/td[1]/table[1]//tr/td[2]/div[1]/table//tr/td[2]/div/text()')[5].strip().split(", ")
 				self._mynews.append(int(pseudo_data[0].split(": ")[1]))
 				self._mynews.append(int(pseudo_data[1].split(": ")[1]))
@@ -290,7 +309,7 @@ class PikabuProfile(PikaService):
 		if (len(self._actions) == 0):
 			_page = self.request("profile/" + self.settings.get('login'))
 			if _page is not None:
-				page_body 		= lxml.html.document_fromstring(_page.decode("windows-1251"))
+				page_body 		= lxml.html.document_fromstring(_page)
 				self._actions.append(int(page_body.xpath('//*[@id="wrap"]/table//tr/td[1]/table[1]//tr/td[2]/div[1]/table//tr/td[2]/div/div/text()')[1].strip()[:-7]))
 				self._actions.append(int(page_body.xpath('//*[@id="wrap"]/table//tr/td[1]/table[1]//tr/td[2]/div[1]/table//tr/td[2]/div/div/text()')[2].strip()[:-8]))
 		else: pass
@@ -300,7 +319,7 @@ class PikabuProfile(PikaService):
 		if (len(self._awards) == 0):
 			_page = self.request("profile/" + self.settings.get('login'))
 			if _page is not None:
-				page_body 		= lxml.html.document_fromstring(_page.decode("windows-1251"))
+				page_body 		= lxml.html.document_fromstring(_page)
 				for cur_award in page_body.xpath('//*[@id="wrap"]/table//tr/td[1]/table[1]//tr/td[2]/div[1]/table//tr/td[3]/div/a/img'):
 					self._awards.append(cur_award.get("title"))
 			else: pass
@@ -337,7 +356,7 @@ class PikabuUserInfo(PikaService):
 		if (self._dor == None):
 			_page = self.request("profile/" + login)
 			if _page is not None:
-				page_body 	= lxml.html.document_fromstring(_page.decode("windows-1251"))
+				page_body 	= lxml.html.document_fromstring(_page)
 				self._dor 	= page_body.xpath('//*[@id="wrap"]/table//tr/td[1]/table[1]//tr/td[2]/div[1]/table//tr/td[2]/div/text()')[2].strip()
 		else: pass
 		return self._dor
@@ -346,7 +365,7 @@ class PikabuUserInfo(PikaService):
 		if (self._rating == None):
 			_page = self.request("profile/" + login)
 			if _page is not None:
-				page_body 		= lxml.html.document_fromstring(_page.decode("windows-1251"))
+				page_body 		= lxml.html.document_fromstring(_page)
 				self._rating 	= page_body.xpath('//*[@id="wrap"]/table//tr/td[1]/table[1]//tr/td[2]/div[1]/table//tr/td[2]/div/text()')[3].strip().split(": ")[1]
 		else: pass
 		return self._rating
@@ -355,7 +374,7 @@ class PikabuUserInfo(PikaService):
 		if (self._comments == None):
 			_page = self.request("profile/" + login)
 			if _page is not None:
-				page_body 		= lxml.html.document_fromstring(_page.decode("windows-1251"))
+				page_body 		= lxml.html.document_fromstring(_page)
 				self._comments 	= page_body.xpath('//*[@id="wrap"]/table//tr/td[1]/table[1]//tr/td[2]/div[1]/table//tr/td[2]/div/text()')[4].strip().split(": ")[1]
 		else: pass
 		return self._comments
@@ -364,7 +383,7 @@ class PikabuUserInfo(PikaService):
 		if (len(self._mynews) == 0):
 			_page = self.request("profile/" + login)
 			if _page is not None:
-				page_body 		= lxml.html.document_fromstring(_page.decode("windows-1251"))
+				page_body 		= lxml.html.document_fromstring(_page)
 				pseudo_data 	= page_body.xpath('//*[@id="wrap"]/table//tr/td[1]/table[1]//tr/td[2]/div[1]/table//tr/td[2]/div/text()')[5].strip().split(", ")
 				self._mynews.append(int(pseudo_data[0].split(": ")[1]))
 				self._mynews.append(int(pseudo_data[1].split(": ")[1]))
@@ -375,7 +394,7 @@ class PikabuUserInfo(PikaService):
 		if (len(self._actions) == 0):
 			_page = self.request("profile/" + login)
 			if _page is not None:
-				page_body 		= lxml.html.document_fromstring(_page.decode("windows-1251"))
+				page_body 		= lxml.html.document_fromstring(_page)
 				self._actions.append(int(page_body.xpath('//*[@id="wrap"]/table//tr/td[1]/table[1]//tr/td[2]/div[1]/table//tr/td[2]/div/div/text()')[1].strip()[:-7]))
 				self._actions.append(int(page_body.xpath('//*[@id="wrap"]/table//tr/td[1]/table[1]//tr/td[2]/div[1]/table//tr/td[2]/div/div/text()')[2].strip()[:-8]))
 		else: pass
@@ -385,12 +404,31 @@ class PikabuUserInfo(PikaService):
 		if (len(self._awards) == 0):
 			_page = self.request("profile/" + login)
 			if _page is not None:
-				page_body 		= lxml.html.document_fromstring(_page.decode("windows-1251"))
+				page_body 		= lxml.html.document_fromstring(_page)
 				for cur_award in page_body.xpath('//*[@id="wrap"]/table//tr/td[1]/table[1]//tr/td[2]/div[1]/table//tr/td[3]/div/a/img'):
 					self._awards.append(cur_award.get("title"))
 			else: pass
 		else:pass
 		return self._awards
+
+class PikabuSetRating(PikaService):
+	def set(self, action, _type, post_id, comment_id=None):		
+			if (_type == 1):
+				if action: act = "+"
+				else: act = "-" 				
+				_page = self.request("ajax/dig.php", {"i":post_id, "type":act})
+				if _page is not None:
+					return _page
+				else: return False
+			else:
+				if comment_id and post_id is not None:
+					if action: act = 1
+					else: act = 0		
+					_page = self.request("dig.php", {'type':"comm", 'i':comment_id, 'story':post_id, 'dir':act}, "GET")
+					if _page is not None:
+						return _page				
+				else: return False
+
 
 class ObjectPosts():
 	def __init__(self, _id, title, url, description, image, text, author, time, comment, rating, tags):
@@ -437,6 +475,7 @@ class Api:
 		self.users	= PikabuUserInfo(**self._settings)
 		#self.user_posts	= PikabuUserPosts(**self._settings)
 		self.profile 	= PikabuProfile(**self._settings)
+		self.rate		= PikabuSetRating(**self._settings)
 		#self.settings 	= PikabuSettings(**self._settings)
 
 
