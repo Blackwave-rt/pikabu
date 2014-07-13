@@ -41,7 +41,7 @@ def fetch_url(_url, settings=None):
 		#if json.loads(resp.read())["logined"] == 0:
 		#	raise ValueError('Неверно указан логин или пароль')
 
-	if url is not None:
+	if _url is not None:
 		resp = req.open(ENDPOINT + _url)
 		return resp.read()
 	else: return False
