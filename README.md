@@ -31,11 +31,11 @@ $ sudo python setup.py install
 Все дальнейшие операции будут происходить через pika_api.
 
 Например, получим заоблачный рейтинг пользователя [Admin](http://pikabu.ru/profile/admin):
-   ```python
+
    import pikabu
    pika_api = pikabu.Api(login='ваш логин', password='ваш пароль')
    pika_api.users.get("admin", "rating")
-```
+
 ## Документация по возможностям
 
 ###api.posts.get(раздел, страница)
@@ -44,7 +44,7 @@ $ sudo python setup.py install
 Аргументы: [hot|best|new], страница
 
 Результат: А в результате возвращается массив с объектом "ObjectPosts", который обладает аргументами:
-```python
+
 	title    - вернет название поста
 	url      - вернет название ссылки
 	text     - вернет текст поста (в случае, если это изображение - вернет None)
@@ -54,13 +54,14 @@ $ sudo python setup.py install
 	comments - вернет количество комментариев
 	rating   - вернет рейтинг поста
 	tags     - вернет массив тегов поста
-```
+
 	
 ###api.users.get(логин, параметр)
+
 Возвращает объект "ObjectUserInfo" в случае, если параметр не был указан. Или (если он все же был указан, лол) возвращает значение запрашиваемого параметра.
 
 ####Параметры:
-```python
+
 	dor 	 - дата регистрации
 	rating   - рейтинг юзера
 	comments - количество комментариев
@@ -68,13 +69,14 @@ $ sudo python setup.py install
 	actions  - возвращает массив вида [поставил плюсов, поставил минусов]
 	avatar   - возвращает ссылку на аватарку юзера
 	awards   - возвращает список наград
-```
+
 
 ####Пример:
-	api.users("Blackwave", dor) - вернет дату регистрации
+    api.users("Blackwave", dor) - вернет дату регистрации
 
-	api.users("Blackwave") - вернет объект "ObjectUserInfo", который имеет аргументы:
-```python
+    api.users("Blackwave") - вернет объект "ObjectUserInfo", который имеет аргументы:
+Аргументы:
+
 		dor 	   - дата регистрации
 		rating   - рейтинг юзера
 		comments - количество комментариев
@@ -82,28 +84,30 @@ $ sudo python setup.py install
 		actions  - возвращает массив вида [поставил плюсов, поставил минусов]
 		avatar   - возвращает ссылку на аватарку юзера
 		awards   - возвращает список наград
-```
+
 
 ###api.profile
 Возвращает информацию по Вашему пользователю. Доступные методы:
-```python
+
 		api.profile.dor()
 		api.profile.rating()
 		api.profile.comments()
 		etc
-```
+
 
 ###api.comments.get(alias, post_id)
 Возвращает комментарии к выбранному посту (алиас вида: nazvanie_temy_1234567)
 
-	api.comments(nazvanie_temy_1234567, 1234567) - вернет объект "ObjectComments" с аргументами:
-```python
-		id     - id комментария
-		rating - рейтинг комментария
-		author - логин автора
-		time   - время добавления
-		text   - текст комментария
-```
+    api.comments(nazvanie_temy_1234567, 1234567) - вернет объект "ObjectComments"
+    
+Аргументы:
+
+    	id     - id комментария
+    	rating - рейтинг комментария
+    	author - логин автора
+    	time   - время добавления
+    	text   - текст комментария
+
 
 ###api.top_tags.get()
 Возвращает популярные за сутки теги. Вид: [название тега, количество]
