@@ -16,6 +16,7 @@
 
 import json
 import lxml.html
+from lxml import etree
 import sys
 import requests
 
@@ -43,7 +44,7 @@ table[@id="story_main_t"]//tr/td/div[%s]/span[1]/a[%s]'''
 XPATH_PIKAPOSTS_RATE = '//*[@id="num_digs%s"]'
 XPATH_PIKAPOSTS_TAGS = '''//*[@id="story_table_%s"]//tr/td[2]/
 table[@id="story_main_t"]//tr/td/div[3]/span[1]/span'''
-XPATH_PIKACOM_LIST = '//*[@class="comm_wrap_counter"]'
+XPATH_PIKACOM_LIST = '/comments/comment'
 XPATH_PIKACOM_RATE = '//*[@id="%s"]//tr[1]/td/noindex/span'
 XPATH_PIKACOM_AUT = '//*[@id="%s"]//tr[1]/td/noindex/a[%s]'
 XPATH_PIKATAG = '//*[@id="story_main_t"]//tr[2]/td/div/a/span'
@@ -315,34 +316,22 @@ class PikabuPosts(PikaService):
 
 class PikabuComments(PikaService):
     """Вывод комментариев по указанному материалу"""
-    def get(self, post_id, post_url):
-        if post_url or post_id is not None:
-            _page = self.request("story/" + post_url)
+    def get(self, post_id, post_url=''):
+        if post_id is not None:
+            _page = self.request("generate_xml_comm.php?id=" + post_id)
             if _page is not None:
                 comment_list = []
-                page_body = lxml.html.document_fromstring(_page)
-                for cur_comment in page_body.xpath(XPATH_PIKACOM_LIST):
-                    comment_id = cur_comment.get("id")[3:]
-                    comment_rating = page_body.xpath(
-                        XPATH_PIKACOM_RATE % cur_comment.get("id"))[0].text
-                    comment_author = page_body.xpath(
-                        XPATH_PIKACOM_AUT % (cur_comment.get("id"), 3))[0].text
-                    caret_avatar = False
-                    if comment_author is None:
-                        comment_author = page_body.xpath(
-                            XPATH_PIKACOM_AUT % (cur_comment.get("id"), 4))[0].text
-                        caret_avatar = True
-                    if caret_avatar:
-                        comment_time = page_body.xpath(
-                            XPATH_PIKACOM_AUT % cur_comment.get("id"))[0].text
-                    else:
-                        comment_time = page_body.xpath(
-                            XPATH_PIKACOM_AUT % (cur_comment.get("id"), 4))[0].text
-                    comment_text = page_body.xpath(
-                        '//*[@id="comment_desc_%s"]' % comment_id)[0].text
+                page_body = etree.fromstring(_page.encode("utf-8"))
+                for item in page_body.xpath(XPATH_PIKACOM_LIST):
+                    comment_id = item.attrib['id']
+                    comment_rating = item.attrib['rating']
+                    comment_author = item.attrib['nick']
+                    comment_parent = item.attrib['answer']
+                    comment_time = item.attrib['date']
+                    comment_text = item.text
                     comment_list.append(ObjectComments(comment_id,
                                 comment_rating, comment_author,
-                                comment_time, comment_text))
+                                comment_time, comment_text, comment_parent))
                 return comment_list
             else:
                 return False
@@ -711,13 +700,14 @@ class ObjectPosts():
 
 class ObjectComments():
     """Объект с комментариями"""
-    def __init__(self, _id, rating, author, time, text, post=None):
+    def __init__(self, _id, rating, author, time, text, parent=0, post=None):
         self.id = _id
         self.rating = rating
         self.author = author
         self.time = time
         self.text = text
         self.post = post
+        self.parent = parent
 
 
 class ObjectUserInfo():
