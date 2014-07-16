@@ -19,6 +19,8 @@ import lxml.html
 from lxml import etree
 import sys
 import requests
+import base64
+import re
 
 ENDPOINT = "http://pikabu.ru/"
 AUTH_URL = ENDPOINT + 'ajax/ajax_login.php'
@@ -34,6 +36,8 @@ POST_HEADERS = {
     "Content-Type": "application/x-www-form-urlencoded",
     "Accept": "application/json, text/javascript, */*; q=0.01"
 }
+IS_LOGGED = False
+USER_DATA = {"login":None, "password":None}
 XPATH_XCSRFTOKEN = "/html/head/script[3]"
 XPATH_PIKAPOSTS_TITLE = '//*[@id="num_dig3%s"]'
 XPATH_PIKAPOSTS_TEXT = '''//*[@id="story_table_%s"]//tr/td[2]/
@@ -66,19 +70,22 @@ XPATH_PIKAUSER_LSMSG = '''//*[@id="com2"]//tr[2]/td/div/noindex/div/input'''
 
 
 def fetch_url(_url, settings=None,
-    _data=None, __method="POST"):
+    _data=None, __method="POST", need_auth=True):
     """Выполняет запрос к сайту и возвращает результат в виде
     страницы
     В зависимости от типа запроса, авторизации и в каком доме находится
     сатурн - выполняет определенный запрос с подстановкой заголовков.
 
     """
-    if len(SITE_REQUEST.cookies) == 0:
+    if need_auth and not IS_LOGGED:
         url = AUTH_URL
+        if USER_DATA['login'] is None:
+            USER_DATA['login'] = settings.get('login')
+            USER_DATA['password'] = settings.get('password')
         login_data = {
           "mode": "login",
-          "username": settings.get('login'),
-          "password": settings.get('password'),
+          "username": USER_DATA['login'],
+          "password": USER_DATA['password'],
           "remember": 0
         }
         resp = SITE_REQUEST.post(url, data=login_data, headers=DEFAULT_HEADERS)
@@ -89,6 +96,7 @@ def fetch_url(_url, settings=None,
         if int(response["logined"]) == -1:
             print response['error']
             sys.exit(1)
+        IS_LOGGED = True
 
     if _url is not None:
         if _data is not None and len(_data) >= 1:
@@ -109,7 +117,10 @@ def fetch_url(_url, settings=None,
                     headers=_headers, params=_data)
         else:
             resp = SITE_REQUEST.get(ENDPOINT + _url, headers=DEFAULT_HEADERS)
-        return resp.text
+        if need_auth:
+            return resp.text
+        else:
+            return resp.content
     else:
         return False
 
@@ -121,9 +132,9 @@ class PikaService:
             raise ValueError('Нужно указать логин и пароль')
         self.settings = settings
 
-    def request(self, url, data=None, method='POST'):
+    def request(self, url, data=None, method='POST', need_auth=True):
         if url is not None:
-            return fetch_url(url, self.settings, data, method)
+            return fetch_url(url, self.settings, data, method, need_auth)
         else:
             return False
 
@@ -398,7 +409,7 @@ class PikabuProfile(PikaService):
     def dor(self):
         """Возвращает дату регистрации юзера"""
         if self._dor is None:
-            _page = self.request("profile/" + self.settings.get('login'))
+            _page = self.request("profile/" + USER_DATA['login'])
             if _page is not None:
                 page_body = lxml.html.document_fromstring(_page)
                 self._dor = page_body.xpath(
@@ -410,7 +421,7 @@ class PikabuProfile(PikaService):
     def rating(self):
         """Возвращает рейтинг пользователя"""
         if self._rating is None:
-            _page = self.request("profile/" + self.settings.get('login'))
+            _page = self.request("profile/" + USER_DATA['login'])
             if _page is not None:
                 page_body = lxml.html.document_fromstring(_page)
                 self._rating = page_body.xpath(
@@ -422,7 +433,7 @@ class PikabuProfile(PikaService):
     def followers(self):
         """Возвращает количество подписчиков"""
         if self._followers is None:
-            _page = self.request("profile/" + self.settings.get('login'))
+            _page = self.request("profile/" + USER_DATA['login'])
             if _page is not None:
                 page_body = lxml.html.document_fromstring(_page)
                 self._followers = page_body.xpath(
@@ -434,7 +445,7 @@ class PikabuProfile(PikaService):
     def messages(self):
         """Возвращает количество сообщений пользователю"""
         if self._messages is None:
-            _page = self.request("profile/" + self.settings.get('login'))
+            _page = self.request("profile/" + USER_DATA['login'])
             if _page is not None:
                 page_body = lxml.html.document_fromstring(_page)
                 try:
@@ -479,7 +490,7 @@ class PikabuProfile(PikaService):
     def comments(self):
         """Возвращает количество комментариев"""
         if self._comments is None:
-            _page = self.request("profile/" + self.settings.get('login'))
+            _page = self.request("profile/" + USER_DATA['login'])
             if _page is not None:
                 page_body = lxml.html.document_fromstring(_page)
                 self._comments = page_body.xpath(
@@ -491,7 +502,7 @@ class PikabuProfile(PikaService):
     def mynews(self):
         """Возвращает количество новостей и их число в горячем"""
         if len(self._mynews) == 0:
-            _page = self.request("profile/" + self.settings.get('login'))
+            _page = self.request("profile/" + USER_DATA['login'])
             if _page is not None:
                 page_body = lxml.html.document_fromstring(_page)
                 pseudo_data = page_body.xpath(
@@ -505,7 +516,7 @@ class PikabuProfile(PikaService):
     def actions(self):
         """Возвращает массив с плюсами и минусами юзера"""
         if len(self._actions) == 0:
-            _page = self.request("profile/" + self.settings.get('login'))
+            _page = self.request("profile/" + USER_DATA['login'])
             if _page is not None:
                 page_body = lxml.html.document_fromstring(_page)
                 self._actions.append(int(page_body.xpath(
@@ -519,7 +530,7 @@ class PikabuProfile(PikaService):
     def awards(self):
         """Возвращает массив с наградами пользователя"""
         if len(self._awards) == 0:
-            _page = self.request("profile/" + self.settings.get('login'))
+            _page = self.request("profile/" + USER_DATA['login'])
             if _page is not None:
                 page_body = lxml.html.document_fromstring(_page)
                 for cur_award in page_body.xpath(XPATH_PIKAUSER_AWARDS):
@@ -646,6 +657,83 @@ class PikabuUserInfo(PikaService):
         return self._awards
 
 
+class PikabuRegistration(PikaService):
+    """Класс для регистрации пользователя
+    После вызова api.register() она возвращает base64 капчи, код которой
+    нужно указать последним параметром в функции add
+    """
+    def __init__(self, **settings):
+        self.rv = None
+        self.first_hidden = None
+        self.pass_name = None
+        self.settings = settings
+
+    def __call__(self):
+        """Возвращает капчу и секретные поля"""
+        _page = self.request("index.php", None, "POST", False)
+        page_body = lxml.html.document_fromstring(_page)        
+        self.first_hidden = page_body.xpath(
+            '//*[@id="form2"]/input[2]')[0].get("name")
+        self.rv = re.search(
+            '\$\("\#rv"\)\.val\(\'(\w+)\'\);', page_body.xpath(
+            '/html/head/script[6]')[0].text).group(1)
+        self.pass_name = page_body.xpath(
+            '//*[@id="rm_pass"]')[0].get("name")
+        _page = self.request(
+            "kcaptcha/index.php?PHPSESS=%s"%SITE_REQUEST.cookies["PHPSESS"],
+             None, "POST", False)
+        return {"image":base64.encodestring(_page)}
+
+    def add(self, login, password, email, captcha_code):
+        """Функция проверяет существование юзера, почты и капчу.
+        Если все круто - регистрирует юзера, если нет - возвращает ошибку
+        """
+        if self.pass_name and self.rv and self.first_hidden is not None:
+            """Проверяем свободен ли логин"""
+            check_login = self.request(
+                "signup.php?avail=" + login, None, "POST", False)
+            if check_login.endswith("0"):
+                return {"result":False, 
+                "error":"Логин уже используется"}
+
+            """Проверяем свободен ли ящик"""
+            check_email = self.request(
+                "ajax/ajax_login.php", {
+                "mode": "test_email",
+                "email": email
+                }, "POST", False)
+            if int(check_email) == 1:
+                return {"result":False, 
+                "error":"Почтовый ящик уже используется"}
+
+            """Проверяем капчу"""
+            check_captcha = self.request("signup.php", {
+                "check_captcha": 1,
+                "captcha": captcha_code
+                }, "POST", False)
+            if int(check_captcha) == 1:
+                return {"result":False, 
+                "error":"Неверно указана капча"}
+
+            _page = self.request("signup.php", {
+                'enter_type': "simple",
+                'username': login,
+                self.first_hidden:"",
+                'email': email,
+                'rv': self.rv,
+                self.pass_name: password,
+                'password2':password,
+                'captcha': captcha_code,
+                'agree': 1}, "POST", False)
+            USER_DATA['login'] = login
+            USER_DATA['password'] = password
+            IS_LOGGED = True
+            return True
+        else:
+            return {"result":False, 
+            "error":"Произошла ошибка, попробуйте получить капчу еще раз!"}    
+
+
 class PikabuSetRating(PikaService):
     """Смена рейтинга поста/комментария"""
     def set(self, action, _type, post_id, comment_id=None):
@@ -700,7 +788,8 @@ class ObjectPosts():
 
 class ObjectComments():
     """Объект с комментариями"""
-    def __init__(self, _id, rating, author, time, text, parent=0, post=None):
+    def __init__(self, _id, rating, author, 
+        time, text, parent=0, post=None):
         self.id = _id
         self.rating = rating
         self.author = author
@@ -733,3 +822,4 @@ class Api:
         #self.user_posts  = PikabuUserPosts(**self._settings)
         self.profile = PikabuProfile(**self._settings)
         self.rate = PikabuSetRating(**self._settings)
+        self.register = PikabuRegistration(**self._settings)
