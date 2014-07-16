@@ -129,6 +129,24 @@ comment_id - ид комментария. Не указывается при typ
 
 ###api.comments.add( (string)text, (int)post_id, (int)comment_id )
 Позволяет добавлять комментарии к посту post_id или к комментарию comment_id (обязательно указывайте post_id)
+
+###api.register() - возвращает код капчи, которая указывается при вызове api.register.add( (string)login, (string)password, (string)email, (string) captcha_key )
+В случае успеха api.register.add() вернет True. Иначе вернет список с описанием ошибки (логин/почта используется, неверная капча)
+```python
+# -*- coding: utf-8 -*-
+import pikabu
+import base64
+
+api = pikabu.Api(login="", password="")
+g = open("captcha.jpg", "wb")
+data = api.register()
+captcha = data["image"]
+g.write(base64.decodestring(captcha))
+g.close()
+captcha_ = raw_input("captcha:")
+print api.register.add("логин", "пароль", "почта", captcha_)
+```
+
 ## Лицензия
 
 Библиотека доступна на условиях лицензии Apache версии 2.0
