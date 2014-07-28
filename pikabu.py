@@ -534,6 +534,14 @@ class PikabuProfile(PikabuUserInfo):
                 return self.actions()
             if params == "awards":
                 return self.awards()
+            if params == "awards":
+                return self.awards()
+            if params == "followers":
+                return self.followers()
+            if params == "messages":
+                return self.messages()
+            if params == "last_msg":
+                return self.last_msg()
         return ObjectUserInfo(settings["login"], self.dor(),
             self.rating(), self.comments(),
             self.news(), self.actions(), self.awards())
