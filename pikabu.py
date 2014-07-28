@@ -78,7 +78,6 @@ def fetch_url(_url, settings=None,
 
     """
     global IS_LOGGED
-    global USER_DATA
     if need_auth and not IS_LOGGED:
         url = AUTH_URL
         if USER_DATA['login'] is None:
@@ -519,6 +518,9 @@ class PikabuProfile(PikabuUserInfo):
         self._awards = []
         self.settings = settings
 
+    def get(self, params=""):
+        """Возвращает информацию о пользователе"""
+        return super(PikabuProfile, self).get(USER_DATA['login'], params="")
 
     def dor(self):
         """Возвращает дату регистрации пользователя"""
