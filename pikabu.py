@@ -789,7 +789,3 @@ class Api:
         self.profile = PikabuProfile(**self._settings)
         self.rate = PikabuSetRating(**self._settings)
         self.register = PikabuRegistration(**self._settings)
-
-pika_api = Api(login='SaintCookie', password='SGiaq4e')
-dor = pika_api.profile.get("dor")
-print dor
