@@ -78,6 +78,7 @@ def fetch_url(_url, settings=None,
 
     """
     global IS_LOGGED
+    global USER_DATA
     if need_auth and not IS_LOGGED:
         url = AUTH_URL
         if USER_DATA['login'] is None:
@@ -433,7 +434,7 @@ class PikabuUserInfo(PikaService):
             if _page is not None:
                 page_body = lxml.html.document_fromstring(_page)
                 self._dor = page_body.xpath(
-                    XPATH_PIKAUSER_DOR)[3].strip()
+                    XPATH_PIKAUSER_DOR)[2].strip()
         else:
             pass
         return self._dor
@@ -445,7 +446,7 @@ class PikabuUserInfo(PikaService):
             if _page is not None:
                 page_body = lxml.html.document_fromstring(_page)
                 self._rating = page_body.xpath(
-                    XPATH_PIKAUSER_RATE)[4].strip().split(": ")[1]
+                    XPATH_PIKAUSER_RATE)[3].strip().split(": ")[1]
         else:
             pass
         return self._rating
@@ -457,7 +458,7 @@ class PikabuUserInfo(PikaService):
             if _page is not None:
                 page_body = lxml.html.document_fromstring(_page)
                 self._comments = page_body.xpath(
-                    XPATH_PIKAUSER_COM)[5].strip().split(": ")[1]
+                    XPATH_PIKAUSER_COM)[4].strip().split(": ")[1]
         else:
             pass
         return self._comments
@@ -469,7 +470,7 @@ class PikabuUserInfo(PikaService):
             if _page is not None:
                 page_body = lxml.html.document_fromstring(_page)
                 pseudo_data = page_body.xpath(
-                    XPATH_PIKAUSER_NEWS)[6].strip().split(", ")
+                    XPATH_PIKAUSER_NEWS)[5].strip().split(", ")
                 self._mynews.append(int(pseudo_data[0].split(": ")[1]))
                 self._mynews.append(int(pseudo_data[1].split(": ")[1]))
         else:
@@ -520,36 +521,51 @@ class PikabuProfile(PikabuUserInfo):
 
     def get(self, params=""):
         """Возвращает информацию о пользователе"""
-        return super(PikabuProfile, self).get(USER_DATA['login'], params="")
+        if params != "":
+            if params == "dor":
+                return self.dor()
+            if params == "rating":
+                return self.rating()
+            if params == "comments":
+                return self.comments()
+            if params == "news":
+                return self.news()
+            if params == "actions":
+                return self.actions()
+            if params == "awards":
+                return self.awards()
+        return ObjectUserInfo(settings["login"], self.dor(),
+            self.rating(), self.comments(),
+            self.news(), self.actions(), self.awards())
 
     def dor(self):
         """Возвращает дату регистрации пользователя"""
-        return super(PikabuProfile, self).dor(USER_DATA['login'])
+        return super(PikabuProfile, self).dor(self.settings["login"])
 
     def rating(self):
         """Возвращает рейтинг пользователя"""
-        return super(PikabuProfile, self).rating(USER_DATA['login'])
+        return super(PikabuProfile, self).rating(self.settings["login"])
 
     def comments(self):
         """Возвращает количество комментариев"""
-        return super(PikabuProfile, self).comments(USER_DATA['login'])
+        return super(PikabuProfile, self).comments(self.settings["login"])
 
     def news(self):
         """Возвращает количество новостей и их число в горячем"""
-        return super(PikabuProfile, self).news(USER_DATA['login'])
+        return super(PikabuProfile, self).news(self.settings["login"])
 
     def actions(self):
         """Возвращает массив с плюсами и минусами юзера"""
-        return super(PikabuProfile, self).actions(USER_DATA['login'])
+        return super(PikabuProfile, self).actions(self.settings["login"])
 
     def awards(self):
         """Возвращает массив с наградами пользователя"""
-        return super(PikabuProfile, self).awards(USER_DATA['login'])
+        return super(PikabuProfile, self).awards(self.settings["login"])
 
     def followers(self):
         """Возвращает количество подписчиков"""
         if self._followers is None:
-            _page = self.request("profile/" + USER_DATA['login'])
+            _page = self.request("profile/" + self.settings["login"])
             if _page is not None:
                 page_body = lxml.html.document_fromstring(_page)
                 self._followers = page_body.xpath(
@@ -561,7 +577,7 @@ class PikabuProfile(PikabuUserInfo):
     def messages(self):
         """Возвращает количество сообщений пользователю"""
         if self._messages is None:
-            _page = self.request("profile/" + USER_DATA['login'])
+            _page = self.request("profile/" + self.settings["login"])
             if _page is not None:
                 page_body = lxml.html.document_fromstring(_page)
                 try:
@@ -773,3 +789,7 @@ class Api:
         self.profile = PikabuProfile(**self._settings)
         self.rate = PikabuSetRating(**self._settings)
         self.register = PikabuRegistration(**self._settings)
+
+pika_api = Api(login='SaintCookie', password='SGiaq4e')
+dor = pika_api.profile.get("dor")
+print dor
