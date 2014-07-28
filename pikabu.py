@@ -458,7 +458,7 @@ class PikabuUserInfo(PikaService):
             if _page is not None:
                 page_body = lxml.html.document_fromstring(_page)
                 self._comments = page_body.xpath(
-                    XPATH_PIKAUSER_COM)[4].strip().split(": ")[1]
+                    XPATH_PIKAUSER_COM)[5].strip().split(": ")[1]
         else:
             pass
         return self._comments
@@ -470,7 +470,7 @@ class PikabuUserInfo(PikaService):
             if _page is not None:
                 page_body = lxml.html.document_fromstring(_page)
                 pseudo_data = page_body.xpath(
-                    XPATH_PIKAUSER_NEWS)[5].strip().split(", ")
+                    XPATH_PIKAUSER_NEWS)[6].strip().split(", ")
                 self._mynews.append(int(pseudo_data[0].split(": ")[1]))
                 self._mynews.append(int(pseudo_data[1].split(": ")[1]))
         else:
@@ -771,7 +771,3 @@ class Api:
         self.profile = PikabuProfile(**self._settings)
         self.rate = PikabuSetRating(**self._settings)
         self.register = PikabuRegistration(**self._settings)
-
-pika_api = Api(login='SaintCookie', password='SGiaq4e')
-dor = pika_api.users.get("SaintCookie", "dor")
-print dor
