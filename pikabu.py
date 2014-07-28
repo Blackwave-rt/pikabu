@@ -330,7 +330,7 @@ class PikabuComments(PikaService):
     """Вывод комментариев по указанному материалу"""
     def get(self, post_id, post_url=''):
         if post_id is not None:
-            _page = self.request("generate_xml_comm.php?id=" + post_id)
+            _page = self.request("generate_xml_comm.php?id=" + str(post_id))
             if _page is not None:
                 comment_list = []
                 page_body = etree.fromstring(_page.encode("utf-8"))
@@ -800,3 +800,31 @@ class Api:
         self.profile = PikabuProfile(**self._settings)
         self.rate = PikabuSetRating(**self._settings)
         self.register = PikabuRegistration(**self._settings)
+
+pika_api = Api(login='???', password='???')
+posts = pika_api.posts.get("hot")
+        # Posts:
+        # self.id = _id
+        # self.title = title
+        # self.url = url
+        # self.description = description
+        # self.tags = None
+        # self.image = image
+        # self.text = text
+        # self.author = author
+        # self.time = time
+        # self.comments = comment
+        # self.rating = rating
+        # self.tags = tags
+        # 
+        # Comments:
+        # self.id = _id
+        # self.rating = rating
+        # self.author = author
+        # self.time = time
+        # self.text = text
+        # self.post = post
+        # self.parent = parent
+comments = pika_api.comments.get(posts[0].id)
+print comments[-1].id, comments[-1].author, comments[-1].text
+pika_api.comments.add( "Смотря какие", posts[0].id, comments[-1].id )
