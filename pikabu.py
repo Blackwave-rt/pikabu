@@ -78,7 +78,6 @@ def fetch_url(_url, settings=None,
 
     """
     global IS_LOGGED
-    global USER_DATA
     if need_auth and not IS_LOGGED:
         url = AUTH_URL
         if USER_DATA['login'] is None:
@@ -542,9 +541,9 @@ class PikabuProfile(PikabuUserInfo):
                 return self.messages()
             if params == "last_msg":
                 return self.last_msg()
-        return ObjectUserInfo(settings["login"], self.dor(),
+        return ObjectUserInfo(self.settings["login"], self.dor(),
             self.rating(), self.comments(),
-            self.news(), self.actions(), self.awards())
+            self.news(), self.actions(), self.awards(), self.followers(), self.messages(), self.last_msg())
 
     def dor(self):
         """Возвращает дату регистрации пользователя"""
@@ -659,6 +658,7 @@ class PikabuRegistration(PikaService):
         return {"image":base64.encodestring(_page)}
 
     def add(self, login, password, email, captcha_code):
+        global IS_LOGGED
         """Функция проверяет существование юзера, почты и капчу.
         Если все круто - регистрирует юзера, если нет - возвращает ошибку
         """
@@ -699,8 +699,8 @@ class PikabuRegistration(PikaService):
                 'password2':password,
                 'captcha': captcha_code,
                 'agree': 1}, "POST", False)
-            USER_DATA['login'] = login
-            USER_DATA['password'] = password
+            self.settings['login'] = login
+            self.settings['password'] = password
             IS_LOGGED = True
             return True
         else:
@@ -775,7 +775,7 @@ class ObjectComments():
 
 class ObjectUserInfo():
     """Объект информации о пользователе"""
-    def __init__(self, login, dor, rating, comments, news, actions, awards):
+    def __init__(self, login, dor, rating, comments, news, actions, awards, followers=None, messages=None, last_msg=None):
         self.login = login
         self.dor = dor
         self.rating = rating
@@ -783,6 +783,9 @@ class ObjectUserInfo():
         self.news = news
         self.actions = actions
         self.awards = awards
+        self.followers = followers
+        self.messages = messages
+        self.last_msg = last_msg
 
 
 class Api:
