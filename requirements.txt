@@ -1,1 +1,1 @@
-lxml, requests
+lxml, requests, cssselect
