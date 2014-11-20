@@ -126,7 +126,7 @@ def fetch_url(_url, settings=None,
         return False
 
 
-class PikaService:
+class PikaService(object):
     """Абстрактный класс"""
     def __init__(self, **settings):
         if "login" not in settings or "password" not in settings:
@@ -330,7 +330,7 @@ class PikabuComments(PikaService):
     """Вывод комментариев по указанному материалу"""
     def get(self, post_id, post_url=''):
         if post_id is not None:
-            _page = self.request("generate_xml_comm.php?id=" + post_id)
+            _page = self.request("generate_xml_comm.php?id=" + str(post_id))
             if _page is not None:
                 comment_list = []
                 page_body = etree.fromstring(_page.encode("utf-8"))
@@ -391,159 +391,6 @@ class PikabuTopTags(PikaService):
                 return False
         else:
             return False
-
-
-class PikabuProfile(PikaService):
-    """Профиль авторизованного пользователя"""
-    def __init__(self, **settings):
-        self._rating = None
-        self._followers = None
-        self._messages = None
-        self._dor = None
-        self._comments = None
-        self._mynews = []
-        self._actions = []
-        self._awards = []
-        self.settings = settings
-
-
-    def dor(self):
-        """Возвращает дату регистрации юзера"""
-        if self._dor is None:
-            _page = self.request("profile/" + USER_DATA['login'])
-            if _page is not None:
-                page_body = lxml.html.document_fromstring(_page)
-                self._dor = page_body.xpath(
-                    XPATH_PIKAUSER_DOR)[2].strip()
-        else:
-            pass
-        return self._dor
-
-    def rating(self):
-        """Возвращает рейтинг пользователя"""
-        if self._rating is None:
-            _page = self.request("profile/" + USER_DATA['login'])
-            if _page is not None:
-                page_body = lxml.html.document_fromstring(_page)
-                self._rating = page_body.xpath(
-                    XPATH_PIKAUSER_RATE)[3].strip().split(": ")[1]
-        else:
-            pass
-        return self._rating
-
-    def followers(self):
-        """Возвращает количество подписчиков"""
-        if self._followers is None:
-            _page = self.request("profile/" + USER_DATA['login'])
-            if _page is not None:
-                page_body = lxml.html.document_fromstring(_page)
-                self._followers = page_body.xpath(
-                    '//*[@id="subs_num"]')[0].text.strip()
-        else:
-            pass
-        return self._followers
-
-    def messages(self):
-        """Возвращает количество сообщений пользователю"""
-        if self._messages is None:
-            _page = self.request("profile/" + USER_DATA['login'])
-            if _page is not None:
-                page_body = lxml.html.document_fromstring(_page)
-                try:
-                    self._messages = page_body.xpath(
-                        XPATH_PIKAUSER_MSG)[0].text
-                except Exception:
-                    self._messages = 0
-        else:
-            pass
-        return self._messages
-
-    def last_msg(self):
-        """Возвращает последнее сообщение пользователю"""
-        _page = self.request("freshitems.php")
-        if _page is not None:
-            page_body = lxml.html.document_fromstring(_page)
-            try:
-                comment_text = page_body.xpath(
-                    '//*[@id="com2"]//tr[2]/td/div/div')[0].text.strip()
-            except Exception:
-                comment_text = None
-                return False
-            if comment_text is not None:
-                comment_id = page_body.xpath(
-                    XPATH_PIKAUSER_LSMSG)[0].get("value")
-                comment_author = page_body.xpath(
-                    '//*[@id="com2"]//tr[1]/td/noindex/a[3]')[0].text
-                comment_time = page_body.xpath(
-                    '//*[@id="com2"]//tr[1]/td/noindex/a[4]')[0].text
-                comment_rating = page_body.xpath(
-                    '//*[@id="com2"]//tr[1]/td/noindex/h6')[0].text
-                comment_post = page_body.xpath(
-                    '//*[@id="com2"]//tr[1]/td/noindex/a[5]')[0].text
-                return ObjectComments(comment_id, comment_rating,
-                    comment_author, comment_time,
-                    comment_text, comment_post)
-            else:
-                return False
-        else:
-            return False
-
-    def comments(self):
-        """Возвращает количество комментариев"""
-        if self._comments is None:
-            _page = self.request("profile/" + USER_DATA['login'])
-            if _page is not None:
-                page_body = lxml.html.document_fromstring(_page)
-                self._comments = page_body.xpath(
-                    XPATH_PIKAUSER_COM)[4].strip().split(": ")[1]
-        else:
-            pass
-        return self._comments
-
-    def mynews(self):
-        """Возвращает количество новостей и их число в горячем"""
-        if len(self._mynews) == 0:
-            _page = self.request("profile/" + USER_DATA['login'])
-            if _page is not None:
-                page_body = lxml.html.document_fromstring(_page)
-                pseudo_data = page_body.xpath(
-                    XPATH_PIKAUSER_NEWS)[5].strip().split(", ")
-                self._mynews.append(int(pseudo_data[0].split(": ")[1]))
-                self._mynews.append(int(pseudo_data[1].split(": ")[1]))
-        else:
-            pass
-        return self._mynews
-
-    def actions(self):
-        """Возвращает массив с плюсами и минусами юзера"""
-        if len(self._actions) == 0:
-            _page = self.request("profile/" + USER_DATA['login'])
-            if _page is not None:
-                page_body = lxml.html.document_fromstring(_page)
-                self._actions.append(int(page_body.xpath(
-                    XPATH_PIKAUSER_ACT)[1].strip()[:-7]))
-                self._actions.append(int(page_body.xpath(
-                    XPATH_PIKAUSER_ACT)[2].strip()[:-8]))
-        else:
-            pass
-        return self._actions
-
-    def awards(self):
-        """Возвращает массив с наградами пользователя"""
-        if len(self._awards) == 0:
-            _page = self.request("profile/" + USER_DATA['login'])
-            if _page is not None:
-                page_body = lxml.html.document_fromstring(_page)
-                for cur_award in page_body.xpath(XPATH_PIKAUSER_AWARDS):
-                    self._awards.append(cur_award.get("title"))
-            else:
-                pass
-        else:
-            pass
-        return self._awards
-
-    def set(self, arg, value):
-        pass
 
 
 class PikabuUserInfo(PikaService):
@@ -658,6 +505,131 @@ class PikabuUserInfo(PikaService):
         return self._awards
 
 
+class PikabuProfile(PikabuUserInfo):
+    """Профиль авторизованного пользователя"""
+    def __init__(self, **settings):
+        self._rating = None
+        self._followers = None
+        self._messages = None
+        self._dor = None
+        self._comments = None
+        self._mynews = []
+        self._actions = []
+        self._awards = []
+        self.settings = settings
+
+    def get(self, params=""):
+        """Возвращает информацию о пользователе"""
+        if params != "":
+            if params == "dor":
+                return self.dor()
+            if params == "rating":
+                return self.rating()
+            if params == "comments":
+                return self.comments()
+            if params == "news":
+                return self.news()
+            if params == "actions":
+                return self.actions()
+            if params == "awards":
+                return self.awards()
+            if params == "awards":
+                return self.awards()
+            if params == "followers":
+                return self.followers()
+            if params == "messages":
+                return self.messages()
+            if params == "last_msg":
+                return self.last_msg()
+        return ObjectUserInfo(self.settings["login"], self.dor(),
+            self.rating(), self.comments(),
+            self.news(), self.actions(), self.awards(), self.followers(), self.messages(), self.last_msg())
+
+    def dor(self):
+        """Возвращает дату регистрации пользователя"""
+        return super(PikabuProfile, self).dor(self.settings["login"])
+
+    def rating(self):
+        """Возвращает рейтинг пользователя"""
+        return super(PikabuProfile, self).rating(self.settings["login"])
+
+    def comments(self):
+        """Возвращает количество комментариев"""
+        return super(PikabuProfile, self).comments(self.settings["login"])
+
+    def news(self):
+        """Возвращает количество новостей и их число в горячем"""
+        return super(PikabuProfile, self).news(self.settings["login"])
+
+    def actions(self):
+        """Возвращает массив с плюсами и минусами юзера"""
+        return super(PikabuProfile, self).actions(self.settings["login"])
+
+    def awards(self):
+        """Возвращает массив с наградами пользователя"""
+        return super(PikabuProfile, self).awards(self.settings["login"])
+
+    def followers(self):
+        """Возвращает количество подписчиков"""
+        if self._followers is None:
+            _page = self.request("profile/" + self.settings["login"])
+            if _page is not None:
+                page_body = lxml.html.document_fromstring(_page)
+                self._followers = page_body.xpath(
+                    '//*[@id="subs_num"]')[0].text.strip()
+        else:
+            pass
+        return self._followers
+
+    def messages(self):
+        """Возвращает количество сообщений пользователю"""
+        if self._messages is None:
+            _page = self.request("profile/" + self.settings["login"])
+            if _page is not None:
+                page_body = lxml.html.document_fromstring(_page)
+                try:
+                    self._messages = page_body.xpath(
+                        XPATH_PIKAUSER_MSG)[0].text
+                except Exception:
+                    self._messages = 0
+        else:
+            pass
+        return self._messages
+
+    def last_msg(self):
+        """Возвращает последнее сообщение пользователю"""
+        _page = self.request("freshitems.php")
+        if _page is not None:
+            page_body = lxml.html.document_fromstring(_page)
+            try:
+                comment_text = page_body.xpath(
+                    '//*[@id="com2"]//tr[2]/td/div/div')[0].text.strip()
+            except Exception:
+                comment_text = None
+                return False
+            if comment_text is not None:
+                comment_id = page_body.xpath(
+                    XPATH_PIKAUSER_LSMSG)[0].get("value")
+                comment_author = page_body.xpath(
+                    '//*[@id="com2"]//tr[1]/td/noindex/a[3]')[0].text
+                comment_time = page_body.xpath(
+                    '//*[@id="com2"]//tr[1]/td/noindex/a[4]')[0].text
+                comment_rating = page_body.xpath(
+                    '//*[@id="com2"]//tr[1]/td/noindex/h6')[0].text
+                comment_post = page_body.xpath(
+                    '//*[@id="com2"]//tr[1]/td/noindex/a[5]')[0].text
+                return ObjectComments(comment_id, comment_rating,
+                    comment_author, comment_time,
+                    comment_text, comment_post)
+            else:
+                return False
+        else:
+            return False
+
+    def set(self, arg, value):
+        pass
+
+
 class PikabuRegistration(PikaService):
     """Класс для регистрации пользователя
     После вызова api.register() она возвращает base64 капчи, код которой
@@ -686,6 +658,7 @@ class PikabuRegistration(PikaService):
         return {"image":base64.encodestring(_page)}
 
     def add(self, login, password, email, captcha_code):
+        global IS_LOGGED
         """Функция проверяет существование юзера, почты и капчу.
         Если все круто - регистрирует юзера, если нет - возвращает ошибку
         """
@@ -726,8 +699,8 @@ class PikabuRegistration(PikaService):
                 'password2':password,
                 'captcha': captcha_code,
                 'agree': 1}, "POST", False)
-            USER_DATA['login'] = login
-            USER_DATA['password'] = password
+            self.settings['login'] = login
+            self.settings['password'] = password
             IS_LOGGED = True
             return True
         else:
@@ -802,7 +775,7 @@ class ObjectComments():
 
 class ObjectUserInfo():
     """Объект информации о пользователе"""
-    def __init__(self, login, dor, rating, comments, news, actions, awards):
+    def __init__(self, login, dor, rating, comments, news, actions, awards, followers=None, messages=None, last_msg=None):
         self.login = login
         self.dor = dor
         self.rating = rating
@@ -810,6 +783,9 @@ class ObjectUserInfo():
         self.news = news
         self.actions = actions
         self.awards = awards
+        self.followers = followers
+        self.messages = messages
+        self.last_msg = last_msg
 
 
 class Api:
