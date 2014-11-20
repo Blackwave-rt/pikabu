@@ -77,6 +77,7 @@ def fetch_url(_url, settings=None,
     сатурн - выполняет определенный запрос с подстановкой заголовков.
 
     """
+    global IS_LOGGED
     if need_auth and not IS_LOGGED:
         url = AUTH_URL
         if USER_DATA['login'] is None:
