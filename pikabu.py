@@ -54,6 +54,8 @@ XPATH_PIKACOM_AUT = '//*[@id="%s"]//tr[1]/td/noindex/a[%s]'
 XPATH_PIKATAG = '//*[@id="story_main_t"]//tr[2]/td/div/a/span'
 XPATH_PIKAUSER_AWARDS = '''//*[@id="wrap"]/table//tr/td[1]/
 table[1]//tr/td[2]/div[1]/table//tr/td[3]/div/a/img'''
+XPATH_PIKAUSER = '''//*[@id="wrap"]/table//tr/td[1]/
+table//tr/td[2]/div[1]/table//tr/td[2]/div/text()'''
 XPATH_PIKAUSER_ACT = '''//*[@id="wrap"]/table//tr/td[1]/
 table[1]//tr/td[2]/div[1]/table//tr/td[2]/div/div/text()'''
 XPATH_PIKAUSER_NEWS = '''//*[@id="wrap"]/table//tr/td[1]/
@@ -61,12 +63,13 @@ table[1]//tr/td[2]/div[1]/table//tr/td[2]/div/text()'''
 XPATH_PIKAUSER_COM = '''//*[@id="wrap"]/table//tr/td[1]/
 table[1]//tr/td[2]/div[1]/table//tr/td[2]/div/text()'''
 XPATH_PIKAUSER_RATE = '''//*[@id="wrap"]/table//tr/td[1]/
-table[1]//tr/td[2]/div[1]/table//tr/td[2]/div/text()'''
+table//tr/td[2]/div[1]/table//tr/td[2]/div/text()'''
 XPATH_PIKAUSER_DOR = '''//*[@id="wrap"]/table//tr/td[1]/
 table[1]//tr/td[2]/div[1]/table//tr/td[2]/div/text()'''
 XPATH_PIKAUSER_MSG = '''//*[@id="right_menu"]/table[1]
 //tr[2]/td/ul/li[5]/a/b'''
 XPATH_PIKAUSER_LSMSG = '''//*[@id="com2"]//tr[2]/td/div/noindex/div/input'''
+RE_PUSER_DOR = re.compile(r'пикабушник\s+уже\s+(.*)')
 
 
 def fetch_url(_url, settings=None,
@@ -80,6 +83,8 @@ def fetch_url(_url, settings=None,
     global IS_LOGGED
     if need_auth and not IS_LOGGED:
         url = AUTH_URL
+        SITE_REQUEST.get(ENDPOINT, headers=DEFAULT_HEADERS)
+        DEFAULT_HEADERS['X-Csrf-Token'] = SITE_REQUEST.cookies.get_dict()['PHPSESS']
         if USER_DATA['login'] is None:
             USER_DATA['login'] = settings.get('login')
             USER_DATA['password'] = settings.get('password')
@@ -102,11 +107,12 @@ def fetch_url(_url, settings=None,
     if _url is not None:
         if _data is not None and len(_data) >= 1:
             _headers = DEFAULT_HEADERS
-            _resp = SITE_REQUEST.get(ENDPOINT, headers=DEFAULT_HEADERS)
+            '''_resp = SITE_REQUEST.get(ENDPOINT, headers=DEFAULT_HEADERS)
             XCSRF_TOKEN = lxml.html.document_fromstring(_resp.text).xpath(
                 XPATH_XCSRFTOKEN)[0].text.strip()
             XCSRF_TOKEN = XCSRF_TOKEN.split("\n")[2].strip()
-            XCSRF_TOKEN = XCSRF_TOKEN.replace("'", "").split(": ")[1]
+            XCSRF_TOKEN = XCSRF_TOKEN.replace("'", "").split(": ")[1]'''
+            XCSRF_TOKEN = SITE_REQUEST.cookies.get_dict()['PHPSESS']
             if __method == "POST":
                 _headers["Content-Type"] = POST_HEADERS["Content-Type"]
                 _headers["Access"] = POST_HEADERS["Accept"]
@@ -396,108 +402,59 @@ class PikabuTopTags(PikaService):
 class PikabuUserInfo(PikaService):
     """Класс информации о пользователе"""
     def __init__(self, **settings):
-        self._rating = None
-        self._followers = None
-        self._messages = None
-        self._dor = None
-        self._comments = None
-        self._mynews = []
-        self._actions = []
-        self._awards = []
-        self._awards = []
-        self.settings = settings
+        self.rating     = None
+        self.followers  = None
+        self.messages   = None
+        self.registered = None
+        self.comments   = None
+        self.news       = []
+        self.actions    = {}
+        self.awards     = []
+        self.settings   = settings
 
     def get(self, login, params=""):
         """Возвращает информацию о пользователе"""
-        if params != "":
-            if params == "dor":
-                return self.dor(login)
-            if params == "rating":
-                return self.rating(login)
-            if params == "comments":
-                return self.comments(login)
-            if params == "news":
-                return self.news(login)
-            if params == "actions":
-                return self.actions(login)
-            if params == "awards":
-                return self.awards(login)
-        return ObjectUserInfo(login, self.dor(login),
-            self.rating(login), self.comments(login),
-            self.news(login), self.actions(login), self.awards(login))
+        _page = self.request("profile/" + login)
+        page_body = lxml.html.document_fromstring(_page)
+        for x in page_body.xpath( XPATH_PIKAUSER ):
+            response = re.sub( "\s+", " ", x.encode("utf-8").strip() )
+            if len(response) >= 3:        
+                if response.startswith("пикабушник уже"):
+                    parsed = re.search( RE_PUSER_DOR, response )
+                    if parsed.group():self.registered = parsed.group(1)
+                    else:self.registered = "None"                
+                elif response.startswith("рейтинг"):
+                    parsed = re.sub( "\s", "", response)
+                    try:self.rating = parsed.split(":")[1]
+                    except:self.rating = 0
+                elif response.startswith("комментариев"):
+                    parsed = re.sub( "\s", "", response)
+                    try:self.comments = parsed.split(":")[1]
+                    except:self.comments = 0              
+                elif response.startswith("добавил постов"):
+                    parsed = re.sub( "\s", "", response)
+                    try:self.news = [x.split(":")[1] for x in parsed.split(",")]
+                    except:self.news = 0
+                elif response.endswith("минусов"):
+                    self.actions["dislike"] = filter(lambda x: x.isdigit(), response)
+                elif "плюсов" in response:
+                    self.actions["like"] = filter(lambda x: x.isdigit(), response)                    
 
-    def dor(self, login):
-        """Возвращает дату регистрации пользователя"""
-        if self._dor is None:
-            _page = self.request("profile/" + login)
-            if _page is not None:
-                page_body = lxml.html.document_fromstring(_page)
-                self._dor = page_body.xpath(
-                    XPATH_PIKAUSER_DOR)[2].strip()
-        else:
-            pass
-        return self._dor
+        return ObjectUserInfo(login, self.registered,
+            self.rating, self.comments,
+            self.news, self.actions, self.awards)
 
-    def rating(self, login):
-        """Возвращает рейтинг юзера"""
-        if self._rating is None:
-            _page = self.request("profile/" + login)
-            if _page is not None:
-                page_body = lxml.html.document_fromstring(_page)
-                self._rating = page_body.xpath(
-                    XPATH_PIKAUSER_RATE)[3].strip().split(": ")[1]
-        else:
-            pass
-        return self._rating
 
-    def comments(self, login):
-        """Возвращает количество комментариев юзера"""
-        if self._comments is None:
-            _page = self.request("profile/" + login)
-            if _page is not None:
-                page_body = lxml.html.document_fromstring(_page)
-                self._comments = page_body.xpath(
-                    XPATH_PIKAUSER_COM)[4].strip().split(": ")[1]
-        else:
-            pass
-        return self._comments
-
-    def news(self, login):
-        """Возвращает массив с количеством новостей"""
-        if len(self._mynews) == 0:
-            _page = self.request("profile/" + login)
-            if _page is not None:
-                page_body = lxml.html.document_fromstring(_page)
-                pseudo_data = page_body.xpath(
-                    XPATH_PIKAUSER_NEWS)[5].strip().split(", ")
-                self._mynews.append(int(pseudo_data[0].split(": ")[1]))
-                self._mynews.append(int(pseudo_data[1].split(": ")[1]))
-        else:
-            pass
-        return self._mynews
-
-    def actions(self, login):
-        """Возвращает массив с количество + и - юзера"""
-        if len(self._actions) == 0:
-            _page = self.request("profile/" + login)
-            if _page is not None:
-                page_body = lxml.html.document_fromstring(_page)
-                self._actions.append(int(page_body.xpath(
-                    XPATH_PIKAUSER_ACT)[1].strip()[:-7]))
-                self._actions.append(int(page_body.xpath(
-                    XPATH_PIKAUSER_ACT)[2].strip()[:-8]))
-        else:
-            pass
-        return self._actions
-
-    def awards(self, login):
+    def _awards(self, login):
         """Возвращает список наград пользователя"""
         if len(self._awards) == 0:
             _page = self.request("profile/" + login)
             if _page is not None:
                 page_body = lxml.html.document_fromstring(_page)
-                for cur_award in page_body.xpath(XPATH_PIKAUSER_AWARDS):
-                    self._awards.append(cur_award.get("title"))
+                self._awards = map(
+                    lambda x: x.get("title").encode('utf-8'), 
+                    page_body.xpath(XPATH_PIKAUSER_AWARDS)
+                )
             else:
                 pass
         else:
