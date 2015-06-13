@@ -56,16 +56,6 @@ XPATH_PIKAUSER_AWARDS = '''//*[@id="wrap"]/table//tr/td[1]/
 table[1]//tr/td[2]/div[1]/table//tr/td[3]/div/a/img'''
 XPATH_PIKAUSER = '''//*[@id="wrap"]/table//tr/td[1]/
 table//tr/td[2]/div[1]/table//tr/td[2]/div/text()'''
-XPATH_PIKAUSER_ACT = '''//*[@id="wrap"]/table//tr/td[1]/
-table[1]//tr/td[2]/div[1]/table//tr/td[2]/div/div/text()'''
-XPATH_PIKAUSER_NEWS = '''//*[@id="wrap"]/table//tr/td[1]/
-table[1]//tr/td[2]/div[1]/table//tr/td[2]/div/text()'''
-XPATH_PIKAUSER_COM = '''//*[@id="wrap"]/table//tr/td[1]/
-table[1]//tr/td[2]/div[1]/table//tr/td[2]/div/text()'''
-XPATH_PIKAUSER_RATE = '''//*[@id="wrap"]/table//tr/td[1]/
-table//tr/td[2]/div[1]/table//tr/td[2]/div/text()'''
-XPATH_PIKAUSER_DOR = '''//*[@id="wrap"]/table//tr/td[1]/
-table[1]//tr/td[2]/div[1]/table//tr/td[2]/div/text()'''
 XPATH_PIKAUSER_MSG = '''//*[@id="right_menu"]/table[1]
 //tr[2]/td/ul/li[5]/a/b'''
 XPATH_PIKAUSER_LSMSG = '''//*[@id="com2"]//tr[2]/td/div/noindex/div/input'''
